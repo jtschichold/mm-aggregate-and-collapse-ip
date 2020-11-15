@@ -1,11 +1,29 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: mm-aggregate-and-collapse-ip
+description: Aggregate and collapse lists of IP addresses/CIDR
+author: Luigi Mori
 inputs:
-  milliseconds: # change this
+  lists:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: filenames of lists to aggregate (using glob)
+  follow-symbolic-links:
+    required: false
+    description: 'Indicates whether to follow symbolic links'
+    default: true
+  result:
+    required: false
+    descriptin: filename of the resulting list
+    default: ""
+  initval:
+    required: false
+    description: filename of the list to aggregate list to
+    default: ""
+  op:
+    required: false
+    description: the operation to perform between list and initval, aggregate or filter
+    default: aggregate
+outputs:
+  result:
+    description: the filename with the resulting list
 runs:
   using: 'node12'
   main: 'dist/index.js'

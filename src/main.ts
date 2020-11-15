@@ -1,16 +1,21 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import * as glob from '@actions/glob'
 
 async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
+    const lists: string = core.getInput('lists', {required: true})
+    const result: string = core.getInput('result')
+    const initval: string = core.getInput('initval')
+    const op: string = core.getInput('op')
+    const globOptions: glob.GlobOptions = {
+      followSymbolicLinks:
+        core.getInput('follow-symbolic-links').toUpperCase() !== 'FALSE'
+    }
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    core.setOutput('time', new Date().toTimeString())
+    const globber = await glob.create(lists, globOptions)
+    for await (const file of globber.globGenerator()) {
+      console.log(file)
+    }
   } catch (error) {
     core.setFailed(error.message)
   }

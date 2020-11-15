@@ -1,24 +1,29 @@
-import {wait} from '../src/wait'
 import * as process from 'process'
 import * as cp from 'child_process'
 import * as path from 'path'
+import * as ipaddress from 'ip-address'
+import * as iplist from '../src/iplist'
 
-test('throws invalid number', async () => {
-  const input = parseInt('foo', 10)
-  await expect(wait(input)).rejects.toThrow('milliseconds not a number')
+test('test read', async () => {
+  let count = 0
+
+  for await (const ipnetwork of iplist.read('./__tests__/test.list')) {
+    count += 1
+  }
+
+  expect(count).toBe(3)
 })
 
-test('wait 500 ms', async () => {
-  const start = new Date()
-  await wait(500)
-  const end = new Date()
-  var delta = Math.abs(end.getTime() - start.getTime())
-  expect(delta).toBeGreaterThan(450)
+test('test supernet 1', () => {
+  const av4 = new ipaddress.Address4('198.51.100.1')
+  const supernet = iplist.supernet(av4)
+
+  expect(supernet.startAddress().address).toBe('198.51.100.0')
+  expect(supernet.subnetMask).toBe(31)
 })
 
-// shows how the runner will run a javascript action with env / stdout protocol
 test('test runs', () => {
-  process.env['INPUT_MILLISECONDS'] = '500'
+  process.env['INPUT_LISTS'] = 'test.list'
   const ip = path.join(__dirname, '..', 'lib', 'main.js')
   const options: cp.ExecSyncOptions = {
     env: process.env
