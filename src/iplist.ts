@@ -1,6 +1,8 @@
 import * as readline from 'readline'
 import * as fs from 'fs'
 import * as ipaddress from 'ip-address'
+import {BigInteger as JsbnBigInteger} from 'jsbn'
+import {type} from 'os'
 
 // types
 interface IPNetwork4 extends ipaddress.Address4 {
@@ -30,6 +32,7 @@ export function ip_network(network: string) {
     throw new TypeError('String is not a valid v4 or v6 network')
 }
 
+// XXX this should become a method
 export function ipnetworkRepr(network: IPNetwork): string {
     if (network.version === 4) {
         return `${network.correctForm()}/${network.subnetMask}`
@@ -43,6 +46,7 @@ export function ipnetworkRepr(network: IPNetwork): string {
     throw new TypeError('Unknown version')
 }
 
+// XXX this one too
 function ipnetworkCmp(a: IPNetwork, b: IPNetwork): number {
     if (a.version !== b.version) {
         throw new TypeError('Comparing different IPNetwork versions')
@@ -56,6 +60,44 @@ function ipnetworkCmp(a: IPNetwork, b: IPNetwork): number {
     }
 
     return a.subnetMask - b.subnetMask
+}
+
+function ipnetworkFromBigInteger(
+    version: number,
+    a: JsbnBigInteger,
+    mask?: number
+) {
+    if (version !== 4 && version != 6) {
+        throw new TypeError('Unknown version')
+    }
+
+    if (version === 6) {
+        let result: IPNetwork = ipaddress.Address6.fromBigInteger(a)
+        result.version = 6
+        if (typeof mask !== 'undefined') {
+            result.subnetMask = mask
+        }
+
+        return result
+    }
+
+    let result: IPNetwork = ipaddress.Address4.fromBigInteger(a)
+    result.version = 4
+    if (typeof mask !== 'undefined') {
+        result.subnetMask = mask
+    }
+
+    return result
+}
+
+// XXX - this should not be exported
+export function countRighthandZeroBits(n: JsbnBigInteger, bits: number) {
+    let first1Bit = n.getLowestSetBit()
+    if (first1Bit === -1) {
+        // zero
+        return bits
+    }
+    return Math.min(first1Bit, bits)
 }
 
 // real stuff
@@ -149,4 +191,54 @@ export function collapse(networks: IPNetwork[]): IPNetwork[] {
         return true
     },
     thisArg)
+}
+
+export function summarize(
+    startAddress: IPNetwork,
+    endAddress: IPNetwork
+): IPNetwork[] {
+    if (startAddress.version !== endAddress.version) {
+        throw new TypeError('Different IPNetwork versions')
+    }
+    if (startAddress.version !== 4 && startAddress.version !== 6) {
+        throw new TypeError('Unknown IP version')
+    }
+    let ipBits = startAddress.version === 6 ? 128 : 32
+    if (
+        startAddress.subnetMask !== ipBits ||
+        endAddress.subnetMask !== ipBits
+    ) {
+        throw new TypeError('start and end must be IP addresses, not networks')
+    }
+    if (ipnetworkCmp(startAddress, endAddress) > 0) {
+        throw new TypeError('end IP address should be greater than start')
+    }
+
+    let result: IPNetwork[] = []
+
+    let startBi = startAddress.bigInteger()
+    let endBi = endAddress.bigInteger()
+
+    while (startBi.compareTo(endBi) <= 0) {
+        let nBits = Math.min(
+            countRighthandZeroBits(startBi, ipBits),
+            endBi.subtract(startBi).add(JsbnBigInteger.ONE).bitLength() - 1
+        )
+
+        result.push(
+            ipnetworkFromBigInteger(
+                startAddress.version,
+                startBi,
+                ipBits - nBits
+            )
+        )
+
+        startBi = startBi.add(JsbnBigInteger.ONE.shiftLeft(nBits))
+
+        if (startBi.subtract(JsbnBigInteger.ONE).bitCount() === ipBits) {
+            break
+        }
+    }
+
+    return result
 }
