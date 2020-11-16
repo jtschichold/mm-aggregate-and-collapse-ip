@@ -15,6 +15,12 @@ interface IPNetwork6 extends ipaddress.Address6 {
 
 export type IPNetwork = IPNetwork4 | IPNetwork6
 
+interface IPNetworkInterval {
+    version: IPNetwork['version']
+    start: JsbnBigInteger
+    end: JsbnBigInteger
+}
+
 // utilities
 export function ip_network(network: string) {
     try {
@@ -241,4 +247,92 @@ export function summarize(
     }
 
     return result
+}
+
+export function filter(
+    list: IPNetwork[],
+    filter: IPNetwork[]
+): {result: IPNetwork[]; delta: IPNetwork[]} {
+    if (filter.length === 0) {
+        return {result: list, delta: []}
+    }
+
+    let result: IPNetwork[] = []
+    let delta: IPNetwork[] = []
+
+    let collapsedFilter = collapse(filter)
+    let filterIntervals: IPNetworkInterval[] = collapsedFilter
+        .map(net => {
+            return {
+                version: net.version,
+                start: net._startAddress(),
+                end: net._endAddress()
+            }
+        })
+        .sort((a, b) => a.start.compareTo(b.start))
+
+    for (let entry of list) {
+        if (typeof entry.version === 'undefined') {
+            throw new TypeError('Invalid vesion')
+        }
+
+        let toFilter: IPNetworkInterval | null = {
+            version: entry.version,
+            start: entry._startAddress(),
+            end: entry._endAddress()
+        }
+
+        for (let cfi of filterIntervals) {
+            if (cfi.version !== toFilter.version) {
+                continue
+            }
+
+            if (cfi.end.compareTo(toFilter.start) < 0) {
+                continue
+            }
+            if (cfi.start.compareTo(toFilter.end) > 0) {
+                break
+            }
+
+            let dStart = cfi.start.subtract(toFilter.start)
+            let dEnd = cfi.end.subtract(toFilter.end)
+
+            if (dStart.signum() > 0) {
+                let summarized = summarize(
+                    ipnetworkFromBigInteger(entry.version, toFilter.start),
+                    ipnetworkFromBigInteger(
+                        entry.version,
+                        toFilter.start.add(dStart).subtract(JsbnBigInteger.ONE)
+                    )
+                )
+                console.log(`summarized: ${summarized.map(ipnetworkRepr)}`)
+                result = result.concat(summarized)
+
+                if (dEnd.signum() < 0) {
+                    toFilter.start = cfi.end
+                } else {
+                    toFilter = null
+                    break
+                }
+            } else {
+                if (dEnd.signum() < 0) {
+                    toFilter.start = cfi.end.add(JsbnBigInteger.ONE)
+                } else {
+                    toFilter = null
+                    break
+                }
+            }
+        }
+
+        if (toFilter !== null) {
+            result = result.concat(
+                summarize(
+                    ipnetworkFromBigInteger(entry.version, toFilter.start),
+                    ipnetworkFromBigInteger(entry.version, toFilter.end)
+                )
+            )
+        }
+    }
+
+    return {result, delta}
 }

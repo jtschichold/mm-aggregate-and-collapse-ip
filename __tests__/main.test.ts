@@ -141,46 +141,87 @@ test('test summarize', () => {
     expect(iplist.ipnetworkRepr(summarized[1])).toBe('1.1.1.8/32')
 
     // all!
-  ip1 = iplist.ip_network('0.0.0.0')
-  ip2 = iplist.ip_network('255.255.255.255')
-  summarized = iplist.summarize(ip1, ip2)
-  expect(summarized).toHaveLength(1)
-  expect(iplist.ipnetworkRepr(summarized[0])).toBe('0.0.0.0/0')
+    ip1 = iplist.ip_network('0.0.0.0')
+    ip2 = iplist.ip_network('255.255.255.255')
+    summarized = iplist.summarize(ip1, ip2)
+    expect(summarized).toHaveLength(1)
+    expect(iplist.ipnetworkRepr(summarized[0])).toBe('0.0.0.0/0')
 
-  ip1 = iplist.ip_network('1::')
-  ip2 = iplist.ip_network('1:ffff:ffff:ffff:ffff:ffff:ffff:ffff')
-  summarized = iplist.summarize(ip1, ip2)
-  expect(summarized).toHaveLength(1)
-  expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
-
-  // test an IPv6 range that isn't on a network byte boundary
-  ip2 = iplist.ip_network('2::')
-  summarized = iplist.summarize(ip1, ip2)
-  expect(summarized).toHaveLength(2)
-  expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
-  expect(iplist.ipnetworkRepr(summarized[1])).toBe('2::/128')
-
-  ip1 = iplist.ip_network('1::%scope')
-  ip2 = iplist.ip_network('1:ffff:ffff:ffff:ffff:ffff:ffff:ffff%scope')
-  // test an IPv6 is summarized properly
-  summarized = iplist.summarize(ip1, ip2)
-  expect(summarized).toHaveLength(1)
-  expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
+    ip1 = iplist.ip_network('1::')
+    ip2 = iplist.ip_network('1:ffff:ffff:ffff:ffff:ffff:ffff:ffff')
+    summarized = iplist.summarize(ip1, ip2)
+    expect(summarized).toHaveLength(1)
+    expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
 
     // test an IPv6 range that isn't on a network byte boundary
-  ip2 = iplist.ip_network('2::%scope')
-  summarized = iplist.summarize(ip1, ip2)
-  expect(summarized).toHaveLength(2)
-  expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
-  expect(iplist.ipnetworkRepr(summarized[1])).toBe('2::/128')
+    ip2 = iplist.ip_network('2::')
+    summarized = iplist.summarize(ip1, ip2)
+    expect(summarized).toHaveLength(2)
+    expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
+    expect(iplist.ipnetworkRepr(summarized[1])).toBe('2::/128')
 
+    ip1 = iplist.ip_network('1::%scope')
+    ip2 = iplist.ip_network('1:ffff:ffff:ffff:ffff:ffff:ffff:ffff%scope')
+    // test an IPv6 is summarized properly
+    summarized = iplist.summarize(ip1, ip2)
+    expect(summarized).toHaveLength(1)
+    expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
 
-  // test exception raised when first is greater than last
-  expect(() => iplist.summarize(iplist.ip_network('1.1.1.0'), iplist.ip_network('1.1.0.0'))).toThrow(TypeError)
+    // test an IPv6 range that isn't on a network byte boundary
+    ip2 = iplist.ip_network('2::%scope')
+    summarized = iplist.summarize(ip1, ip2)
+    expect(summarized).toHaveLength(2)
+    expect(iplist.ipnetworkRepr(summarized[0])).toBe('1::/16')
+    expect(iplist.ipnetworkRepr(summarized[1])).toBe('2::/128')
 
-  // test exception raised when first and last aren't IP addresses
-  expect(() => iplist.summarize(iplist.ip_network('1.1.0.0/24'), iplist.ip_network('1.1.1.0/24'))).toThrow(TypeError)
-  expect(() => iplist.summarize(iplist.ip_network('::'), iplist.ip_network('1.1.0.0'))).toThrow(TypeError)
+    // test exception raised when first is greater than last
+    expect(() =>
+        iplist.summarize(
+            iplist.ip_network('1.1.1.0'),
+            iplist.ip_network('1.1.0.0')
+        )
+    ).toThrow(TypeError)
+
+    // test exception raised when first and last aren't IP addresses
+    expect(() =>
+        iplist.summarize(
+            iplist.ip_network('1.1.0.0/24'),
+            iplist.ip_network('1.1.1.0/24')
+        )
+    ).toThrow(TypeError)
+    expect(() =>
+        iplist.summarize(iplist.ip_network('::'), iplist.ip_network('1.1.0.0'))
+    ).toThrow(TypeError)
+})
+
+test('test filter', () => {
+    // XXX - delta
+    let ip1 = iplist.ip_network('1.1.1.0/24')
+    let ip2 = iplist.ip_network('1.1.1.0/24')
+    let {result, delta} = iplist.filter([ip1], [ip2])
+    expect(result).toHaveLength(0)
+
+    ip1 = iplist.ip_network('1.1.1.0/24')
+    ip2 = iplist.ip_network('1.1.1.128/25');
+    ({result, delta} = iplist.filter([ip1], [ip2]))
+    expect(result).toHaveLength(1)
+    expect(iplist.ipnetworkRepr(result[0])).toBe('1.1.1.0/25')
+
+    ip1 = iplist.ip_network('1.1.1.0/24')
+    ip2 = iplist.ip_network('1.1.1.0/25');
+    ({result, delta} = iplist.filter([ip1], [ip2]))
+    expect(result).toHaveLength(1)
+    expect(iplist.ipnetworkRepr(result[0])).toBe('1.1.1.128/25')
+
+    ip1 = iplist.ip_network('1.1.1.0/24')
+    ip2 = iplist.ip_network('1.1.0.0/16');
+    ({result, delta} = iplist.filter([ip1], [ip2]))
+    expect(result).toHaveLength(0)
+
+    ip1 = iplist.ip_network('1.1.0.0/22')
+    ip2 = iplist.ip_network('1.1.1.0/24');
+    ({result, delta} = iplist.filter([ip1], [ip2]))
+    expect(result).toHaveLength(2)
 })
 
 test('test supernet 1', () => {
