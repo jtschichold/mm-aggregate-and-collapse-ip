@@ -72,7 +72,7 @@ function ipnetworkFromBigInteger(
     version: number,
     a: JsbnBigInteger,
     mask?: number
-) {
+): IPNetwork {
     if (version !== 4 && version != 6) {
         throw new TypeError('Unknown version')
     }
@@ -94,6 +94,17 @@ function ipnetworkFromBigInteger(
     }
 
     return result
+}
+
+function ipnetworkintervalSummarize(i: IPNetworkInterval): IPNetwork[] {
+    if (typeof i.version === 'undefined') {
+        throw new TypeError('Unknown version')
+    }
+
+    let start = ipnetworkFromBigInteger(i.version, i.start)
+    let end = ipnetworkFromBigInteger(i.version, i.end)
+
+    return summarize(start, end)
 }
 
 // XXX - this should not be exported
@@ -281,6 +292,8 @@ export function filter(
             start: entry._startAddress(),
             end: entry._endAddress()
         }
+        let summarized: IPNetwork[]
+        let filtered: IPNetwork[]
 
         for (let cfi of filterIntervals) {
             if (cfi.version !== toFilter.version) {
@@ -298,26 +311,45 @@ export function filter(
             let dEnd = cfi.end.subtract(toFilter.end)
 
             if (dStart.signum() > 0) {
-                let summarized = summarize(
-                    ipnetworkFromBigInteger(entry.version, toFilter.start),
-                    ipnetworkFromBigInteger(
-                        entry.version,
-                        toFilter.start.add(dStart).subtract(JsbnBigInteger.ONE)
-                    )
-                )
-                console.log(`summarized: ${summarized.map(ipnetworkRepr)}`)
+                summarized = ipnetworkintervalSummarize({
+                    start: toFilter.start,
+                    end: toFilter.start
+                        .add(dStart)
+                        .subtract(JsbnBigInteger.ONE),
+                    version: entry.version
+                })
                 result = result.concat(summarized)
 
                 if (dEnd.signum() < 0) {
-                    toFilter.start = cfi.end
+                    filtered = ipnetworkintervalSummarize(cfi)
+                    delta = delta.concat(filtered)
+
+                    toFilter.start = cfi.end.add(JsbnBigInteger.ONE)
                 } else {
+                    filtered = ipnetworkintervalSummarize({
+                        start: cfi.start,
+                        end: toFilter.end,
+                        version: entry.version
+                    })
+                    delta = delta.concat(filtered)
+
                     toFilter = null
                     break
                 }
             } else {
                 if (dEnd.signum() < 0) {
+                    filtered = ipnetworkintervalSummarize({
+                        start: toFilter.start,
+                        end: cfi.end,
+                        version: entry.version
+                    })
+                    delta = delta.concat(filtered)
+
                     toFilter.start = cfi.end.add(JsbnBigInteger.ONE)
                 } else {
+                    filtered = ipnetworkintervalSummarize(toFilter)
+                    delta = delta.concat(filtered)
+
                     toFilter = null
                     break
                 }
@@ -325,12 +357,7 @@ export function filter(
         }
 
         if (toFilter !== null) {
-            result = result.concat(
-                summarize(
-                    ipnetworkFromBigInteger(entry.version, toFilter.start),
-                    ipnetworkFromBigInteger(entry.version, toFilter.end)
-                )
-            )
+            result = result.concat(ipnetworkintervalSummarize(toFilter))
         }
     }
 
