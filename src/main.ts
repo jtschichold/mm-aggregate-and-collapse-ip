@@ -5,13 +5,18 @@ import * as tmp from 'tmp'
 import * as iplist from './iplist'
 import * as reservedIPs from './reservedips'
 
+export interface FilterOptions {
+    minV6SubnetMask?: number
+    minV4SubnetMask?: number
+}
+
 interface ActionInputs {
     list: string
     listGlobOptions: glob.GlobOptions
     initval?: string
     filter?: string
     filterReservedIPs?: boolean
-    filterOptions: iplist.FilterOptions
+    filterOptions: FilterOptions
     tmpTemplate: string
 }
 
@@ -53,8 +58,29 @@ function parseInputs(): ActionInputs {
     return result
 }
 
+function isSubnetMaskOk(n: iplist.IPNetwork, options: FilterOptions): boolean {
+    if (
+        n.version === 4 &&
+        options?.minV4SubnetMask &&
+        n.subnetMask < options?.minV4SubnetMask
+    ) {
+        return false
+    }
+    if (
+        n.version === 6 &&
+        options?.minV6SubnetMask &&
+        n.subnetMask < options?.minV6SubnetMask
+    ) {
+        return false
+    }
+
+    return true
+}
+
 async function run(): Promise<void> {
     try {
+        const delta: iplist.IPNetwork[] = []
+
         const inputs = parseInputs()
 
         // load the initial list if present
@@ -63,6 +89,12 @@ async function run(): Promise<void> {
         if (inputs.initval) {
             for await (const ivnet of iplist.read(inputs.initval)) {
                 core.info(`Loading initval from ${inputs.initval}...`)
+
+                if (!isSubnetMaskOk(ivnet, inputs.filterOptions)) {
+                    delta.push(ivnet)
+                    continue
+                }
+
                 initialList.push(ivnet)
             }
         }
@@ -72,6 +104,11 @@ async function run(): Promise<void> {
         for await (const lpath of globber.globGenerator()) {
             core.info(`Loading list from ${lpath}...`)
             for await (const nentry of iplist.read(lpath)) {
+                if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                    delta.push(nentry)
+                    continue
+                }
+
                 initialList.push(nentry)
             }
         }
@@ -79,7 +116,6 @@ async function run(): Promise<void> {
         // aggregate the list
         core.info('Aggregating and collapsing the list...')
         let result = iplist.collapse(initialList)
-        let delta: iplist.IPNetwork[] = []
 
         // build the filter list
         let filterListV4: iplist.IPNetwork[] = []
@@ -121,12 +157,14 @@ async function run(): Promise<void> {
             inputs.filterOptions.minV4SubnetMask !== 0 ||
             inputs.filterOptions.minV6SubnetMask !== 0
         ) {
+            let fdelta: iplist.IPNetwork[]
+
             core.info('Filtering the list...')
-            ;({result, delta} = iplist.filter(
+            ;({result, delta: fdelta} = iplist.filter(
                 result,
-                filterListV4.concat(filterListV6),
-                inputs.filterOptions
+                filterListV4.concat(filterListV6)
             ))
+            delta.concat(fdelta)
         }
 
         // save my stuff

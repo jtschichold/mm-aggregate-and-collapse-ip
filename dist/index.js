@@ -2244,7 +2244,7 @@ function read(path) {
                     yield yield __await(ip_network(trimmedLine));
                 }
                 catch (_b) {
-                    core.warning(`Line "${trimmedLine.slice(0, 16)}${trimmedLine.length > 16 ? "..." : ""}" is not a valid IP network`);
+                    core.warning(`Line "${trimmedLine.slice(0, 16)}${trimmedLine.length > 16 ? '...' : ''}" is not a valid IP network`);
                 }
             }
         }
@@ -2361,10 +2361,8 @@ function summarize(startAddress, endAddress) {
     return result;
 }
 exports.summarize = summarize;
-function filter(list, filterList, options) {
-    if (filter.length === 0 &&
-        !(options === null || options === void 0 ? void 0 : options.minV4SubnetMask) &&
-        !(options === null || options === void 0 ? void 0 : options.minV6SubnetMask)) {
+function filter(list, filterList) {
+    if (filter.length === 0) {
         return { result: list, delta: [] };
     }
     let result = [];
@@ -2381,17 +2379,6 @@ function filter(list, filterList, options) {
     for (const entry of list) {
         if (typeof entry.version === 'undefined') {
             throw new TypeError('Invalid vesion');
-        }
-        // filter subnet mask
-        if (entry.version === 4 && (options === null || options === void 0 ? void 0 : options.minV4SubnetMask) &&
-            entry.subnetMask < (options === null || options === void 0 ? void 0 : options.minV4SubnetMask)) {
-            delta.push(entry);
-            continue;
-        }
-        if (entry.version === 6 && (options === null || options === void 0 ? void 0 : options.minV6SubnetMask) &&
-            entry.subnetMask < (options === null || options === void 0 ? void 0 : options.minV6SubnetMask)) {
-            delta.push(entry);
-            continue;
         }
         let toFilter = {
             version: entry.version,
@@ -2586,10 +2573,22 @@ function parseInputs() {
         result.tmpTemplate = path.join(outputDir, 'XXXXXX');
     return result;
 }
+function isSubnetMaskOk(n, options) {
+    if (n.version === 4 && (options === null || options === void 0 ? void 0 : options.minV4SubnetMask) &&
+        n.subnetMask < (options === null || options === void 0 ? void 0 : options.minV4SubnetMask)) {
+        return false;
+    }
+    if (n.version === 6 && (options === null || options === void 0 ? void 0 : options.minV6SubnetMask) &&
+        n.subnetMask < (options === null || options === void 0 ? void 0 : options.minV6SubnetMask)) {
+        return false;
+    }
+    return true;
+}
 function run() {
     var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            const delta = [];
             const inputs = parseInputs();
             // load the initial list if present
             const initialList = [];
@@ -2598,6 +2597,10 @@ function run() {
                     for (var _e = __asyncValues(iplist.read(inputs.initval)), _f; _f = yield _e.next(), !_f.done;) {
                         const ivnet = _f.value;
                         core.info(`Loading initval from ${inputs.initval}...`);
+                        if (!isSubnetMaskOk(ivnet, inputs.filterOptions)) {
+                            delta.push(ivnet);
+                            continue;
+                        }
                         initialList.push(ivnet);
                     }
                 }
@@ -2618,6 +2621,10 @@ function run() {
                     try {
                         for (var _j = (e_3 = void 0, __asyncValues(iplist.read(lpath))), _k; _k = yield _j.next(), !_k.done;) {
                             const nentry = _k.value;
+                            if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                                delta.push(nentry);
+                                continue;
+                            }
                             initialList.push(nentry);
                         }
                     }
@@ -2640,7 +2647,6 @@ function run() {
             // aggregate the list
             core.info('Aggregating and collapsing the list...');
             let result = iplist.collapse(initialList);
-            let delta = [];
             // build the filter list
             let filterListV4 = [];
             let filterListV6 = [];
@@ -2681,8 +2687,10 @@ function run() {
                 filterListV6.length !== 0 ||
                 inputs.filterOptions.minV4SubnetMask !== 0 ||
                 inputs.filterOptions.minV6SubnetMask !== 0) {
+                let fdelta;
                 core.info('Filtering the list...');
-                ({ result, delta } = iplist.filter(result, filterListV4.concat(filterListV6), inputs.filterOptions));
+                ({ result, delta: fdelta } = iplist.filter(result, filterListV4.concat(filterListV6)));
+                delta.concat(fdelta);
             }
             // save my stuff
             core.info('Saving outputs...');

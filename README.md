@@ -1,103 +1,106 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+# mm-process-ip-list
 
-# Create a JavaScript Action using TypeScript
+This action can be used to process list of IPv4 & IPv6 networks to.
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+The action can be used to:
+- aggregate and collapse multiple lists
+- drop the entries overlapping a given list of IPv4 & IPv6 networks
+- drop the entries overlapping reserved IP networks
+- drop the entries where the subnet mask is too *small*
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+## Inputs
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+### `list`
 
-## Create an action from this template
+*Required*
 
-Click the `Use this Template` and provide the new repo details for your action
+Name of the list(s) to operate on. This input supports glob patterns (see: [@actions/glob](https://github.com/actions/toolkit/tree/master/packages/glob)).
 
-## Code in Main
+All the files matching the given glob pattern are aggregated and collapsed before filtering.
 
-Install the dependencies  
-```bash
-$ npm install
-```
+### `followSymbolicLinks`
 
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
-```
+If symbolic link should be followed during processing of glob pattern in `list`.
 
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
+Default: *true*. Set to `False` to disable symbolic link.
 
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
+### `initval`
 
-...
-```
+Path to a list of IPv4 & IPv6 networks. Entries from `list` are added to this before processing. You can think of it as the `initval` argument in a `reduce` op.
 
-## Change action.yml
+Default: *none*
 
-The action.yml contains defines the inputs and output for your action.
+### `filter`
 
-Update the action.yml with your name, description, inputs and outputs for your action.
+Path to a list of IPv4 & IPv6 networks. If an entry from `list` overlaps one of the entries in `filter`, the overlapping part will be dropped and won't show up in `result`.
 
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
+Default: *none*
 
-## Change the Code
+### `filterReservedIps`
 
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
+Drop `entries` from list if they overlap one reserved IP networks (see [Wikipedia](ttps://en.wikipedia.org/wiki/Reserved_IP_addresses) for  a list).
 
-```javascript
-import * as core from '@actions/core';
-...
+Default: *false*. Set to *True* to enable.
 
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
+### `minIPv6Mask`
 
-run()
-```
+Minimum allowed subnet mask length for IPv6 networks. IPv6 networks from `list` with a subnet mask length lower than this value will be discarded.
 
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
+Default: 8
 
-## Publish to a distribution branch
+### `minIPv4Mask`
 
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
+Minimum allowed subnet mask length for IPv4 networks. IPv4 networks from `list` with a subnet mask length lower than this value will be discarded.
 
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
+Default: 8
 
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
+### `outputDir`
 
-Your action is now published! :rocket: 
+The directory to generate results into.
 
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
+Default: *./temp*
 
-## Validate
+## Outputs
 
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
+### `result`
 
+Path of the list with the processing results
+
+### `delta`
+
+Path of the list with entries dropped by filtering operations
+
+## Example usage
+
+### Aggregate & Collapse
 ```yaml
-uses: ./
+# Basic usage, all the networks from the files matching *.list are
+# aggregated and collapsed.
+# 
+# Example:
+# List (from *.list): 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24
+# Result: 10.0.0.0/23, 10.0.2.0/24
+uses: jtschichold/mm-process-ip-list
 with:
-  milliseconds: 1000
+  list: *.list
 ```
 
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
+### Aggregate & Collapse & Filter
+```yaml
+# All the networks from the files matching *.list are aggregated,
+# collapsed and the subnets overlapping one of the entries in 
+# myorgips.list are dropped (and saved in delta)
+#
+# Example: 
+# List (from *.list): 10.0.0.0, 10.0.0.1, 10.0.1.0/24
+# Filter (from myorgs.filter): 10.0.1.128/25
+# Result: 10.0.0.0/31, 10.0.1.0/25
+uses: jtschichold/mm-process-ip-list
+with:
+  list: *.list
+  filter: myorgips.filter
+```
 
-## Usage:
+# License
 
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+The scripts and documentation in this project are released under the [MIT License](LICENSE)

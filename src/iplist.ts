@@ -21,11 +21,6 @@ interface IPNetworkInterval {
     end: JsbnBigInteger
 }
 
-export interface FilterOptions {
-    minV6SubnetMask?: number
-    minV4SubnetMask?: number
-}
-
 // utilities
 export function ip_network(network: string): IPNetwork {
     try {
@@ -298,14 +293,9 @@ export function summarize(
 
 export function filter(
     list: IPNetwork[],
-    filterList: IPNetwork[],
-    options?: FilterOptions
+    filterList: IPNetwork[]
 ): {result: IPNetwork[]; delta: IPNetwork[]} {
-    if (
-        filter.length === 0 &&
-        !options?.minV4SubnetMask &&
-        !options?.minV6SubnetMask
-    ) {
+    if (filter.length === 0) {
         return {result: list, delta: []}
     }
 
@@ -325,24 +315,6 @@ export function filter(
     for (const entry of list) {
         if (typeof entry.version === 'undefined') {
             throw new TypeError('Invalid vesion')
-        }
-
-        // filter subnet mask
-        if (
-            entry.version === 4 &&
-            options?.minV4SubnetMask &&
-            entry.subnetMask < options?.minV4SubnetMask
-        ) {
-            delta.push(entry)
-            continue
-        }
-        if (
-            entry.version === 6 &&
-            options?.minV6SubnetMask &&
-            entry.subnetMask < options?.minV6SubnetMask
-        ) {
-            delta.push(entry)
-            continue
         }
 
         let toFilter: IPNetworkInterval | null = {

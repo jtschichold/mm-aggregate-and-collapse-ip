@@ -15,14 +15,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/jtschichold/mm-process-ip-list"
   },
+  "bugs": {
+    "url": "https://github.com/jtschichold/mm-process-ip-list/issues"
+  },
+  "homepage": "https://github.com/jtschichold/mm-process-ip-list#readme",
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "",
+  "author": "Luigi Mori",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.2.6",
