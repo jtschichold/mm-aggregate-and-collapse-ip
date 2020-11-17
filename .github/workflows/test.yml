@@ -13,12 +13,16 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           npm install
+      - name: create temp dir
+        run: mkdir -p ./temp
       - run: |
           npm run all
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: create temp dir
+        run: mkdir -p ./temp
       - uses: ./
         with:
           list: "./__tests__/*.list"
