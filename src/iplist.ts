@@ -1,9 +1,8 @@
+import * as core from '@actions/core'
 import * as readline from 'readline'
 import * as fs from 'fs'
 import * as ipaddress from 'ip-address'
 import {BigInteger as JsbnBigInteger} from 'jsbn'
-import {type} from 'os'
-import { file } from 'tmp'
 
 // types
 interface IPNetwork4 extends ipaddress.Address4 {
@@ -28,18 +27,22 @@ export interface FilterOptions {
 }
 
 // utilities
-export function ip_network(network: string) {
+export function ip_network(network: string): IPNetwork {
     try {
-        let result: IPNetwork = new ipaddress.Address4(network)
+        const result: IPNetwork = new ipaddress.Address4(network)
         result.version = 4
         return result
-    } catch {}
+    } catch {
+        // ignore, if this is not a valid IPv4 we will try with IPv6
+    }
 
     try {
-        let result: IPNetwork = new ipaddress.Address6(network)
+        const result: IPNetwork = new ipaddress.Address6(network)
         result.version = 6
         return result
-    } catch {}
+    } catch {
+        // ignore, if this is not even a valid IPv6 we throw an error down below
+    }
 
     throw new TypeError('String is not a valid v4 or v6 network')
 }
@@ -49,7 +52,7 @@ export function ipnetworkRepr(network: IPNetwork): string {
     if (network.version === 4) {
         return `${network.correctForm()}/${network.subnetMask}`
     }
-    if (network.version == 6) {
+    if (network.version === 6) {
         return `${network.correctForm()}${network.zone ? network.zone : ''}/${
             network.subnetMask
         }`
@@ -64,9 +67,9 @@ function ipnetworkCmp(a: IPNetwork, b: IPNetwork): number {
         throw new TypeError('Comparing different IPNetwork versions')
     }
 
-    let aBi = a.bigInteger()
-    let bBi = b.bigInteger()
-    let biComparison = aBi.compareTo(bBi)
+    const aBi = a.bigInteger()
+    const bBi = b.bigInteger()
+    const biComparison = aBi.compareTo(bBi)
     if (biComparison !== 0) {
         return biComparison
     }
@@ -79,12 +82,12 @@ function ipnetworkFromBigInteger(
     a: JsbnBigInteger,
     mask?: number
 ): IPNetwork {
-    if (version !== 4 && version != 6) {
+    if (version !== 4 && version !== 6) {
         throw new TypeError('Unknown version')
     }
 
     if (version === 6) {
-        let result: IPNetwork = ipaddress.Address6.fromBigInteger(a)
+        const result: IPNetwork = ipaddress.Address6.fromBigInteger(a)
         result.version = 6
         if (typeof mask !== 'undefined') {
             result.subnetMask = mask
@@ -93,7 +96,7 @@ function ipnetworkFromBigInteger(
         return result
     }
 
-    let result: IPNetwork = ipaddress.Address4.fromBigInteger(a)
+    const result: IPNetwork = ipaddress.Address4.fromBigInteger(a)
     result.version = 4
     if (typeof mask !== 'undefined') {
         result.subnetMask = mask
@@ -107,15 +110,18 @@ function ipnetworkintervalSummarize(i: IPNetworkInterval): IPNetwork[] {
         throw new TypeError('Unknown version')
     }
 
-    let start = ipnetworkFromBigInteger(i.version, i.start)
-    let end = ipnetworkFromBigInteger(i.version, i.end)
+    const start = ipnetworkFromBigInteger(i.version, i.start)
+    const end = ipnetworkFromBigInteger(i.version, i.end)
 
     return summarize(start, end)
 }
 
 // XXX - this should not be exported
-export function countRighthandZeroBits(n: JsbnBigInteger, bits: number) {
-    let first1Bit = n.getLowestSetBit()
+export function countRighthandZeroBits(
+    n: JsbnBigInteger,
+    bits: number
+): number {
+    const first1Bit = n.getLowestSetBit()
     if (first1Bit === -1) {
         // zero
         return bits
@@ -142,15 +148,24 @@ export async function* read(
 
         try {
             yield ip_network(trimmedLine)
-        } catch {}
+        } catch {
+            core.warning(
+                `Line "${trimmedLine.slice(0, 16)}${
+                    trimmedLine.length > 16 ? '...' : ''
+                }" is not a valid IP network`
+            )
+        }
     }
 }
 
-export function write(path: string, list: IPNetwork[]): Promise<string> {
+export async function write(path: string, list: IPNetwork[]): Promise<string> {
     return new Promise((resolve, reject) => {
-        const wstream = fs.createWriteStream(path, {flags: 'w+', encoding: 'utf-8'})
+        const wstream = fs.createWriteStream(path, {
+            flags: 'w+',
+            encoding: 'utf-8'
+        })
 
-        for (let entry of list) {
+        for (const entry of list) {
             wstream.write(ipnetworkRepr(entry))
             wstream.write('\n')
         }
@@ -162,14 +177,14 @@ export function write(path: string, list: IPNetwork[]): Promise<string> {
 }
 
 export function supernet(net: IPNetwork): IPNetwork {
-    let temp = net.startAddress()
+    const temp = net.startAddress()
     let subnetMask = net.subnetMask
-    if (subnetMask != 0) {
+    if (subnetMask !== 0) {
         subnetMask -= 1
     }
     temp.subnetMask = subnetMask
 
-    let netResult: IPNetwork = temp.startAddress()
+    const netResult: IPNetwork = temp.startAddress()
     netResult.subnetMask = subnetMask
     netResult.version = net.version
 
@@ -181,26 +196,26 @@ export function collapse(networks: IPNetwork[]): IPNetwork[] {
     if (networks.length === 0) {
         return []
     }
-    for (let n of networks) {
+    for (const n of networks) {
         if (n.version !== networks[0].version) {
             throw new TypeError('Different IPNetwork versions in collapse')
         }
     }
 
-    let to_merge: IPNetwork[] = []
+    const to_merge: IPNetwork[] = []
     Object.assign(to_merge, networks)
 
-    let subnets: Map<string, IPNetwork> = new Map()
+    const subnets: Map<string, IPNetwork> = new Map()
 
     while (to_merge.length !== 0) {
-        let cnet = to_merge.pop()
+        const cnet = to_merge.pop()
         if (typeof cnet === 'undefined') {
             break
         }
 
-        let csupernet = supernet(cnet)
-        let csupernetRepr = ipnetworkRepr(csupernet)
-        let existing = subnets.get(csupernetRepr)
+        const csupernet = supernet(cnet)
+        const csupernetRepr = ipnetworkRepr(csupernet)
+        const existing = subnets.get(csupernetRepr)
         if (typeof existing === 'undefined') {
             subnets.set(csupernetRepr, cnet)
         } else if (ipnetworkCmp(existing, cnet) !== 0) {
@@ -209,14 +224,14 @@ export function collapse(networks: IPNetwork[]): IPNetwork[] {
         }
     }
 
-    let subnetsValue = Array.from(subnets.values()).sort(ipnetworkCmp)
+    const subnetsValue = Array.from(subnets.values()).sort(ipnetworkCmp)
 
-    let thisArg: {last: IPNetwork | undefined} = {last: undefined}
+    const thisArg: {last: IPNetwork | undefined} = {last: undefined}
     return subnetsValue.filter(function (
         this: typeof thisArg,
         value: IPNetwork
     ): boolean {
-        let cEndAddress = value.endAddress()
+        const cEndAddress = value.endAddress()
 
         if (typeof this.last !== 'undefined') {
             if (ipnetworkCmp(this.last, cEndAddress) >= 0) {
@@ -241,7 +256,7 @@ export function summarize(
     if (startAddress.version !== 4 && startAddress.version !== 6) {
         throw new TypeError('Unknown IP version')
     }
-    let ipBits = startAddress.version === 6 ? 128 : 32
+    const ipBits = startAddress.version === 6 ? 128 : 32
     if (
         startAddress.subnetMask !== ipBits ||
         endAddress.subnetMask !== ipBits
@@ -252,13 +267,13 @@ export function summarize(
         throw new TypeError('end IP address should be greater than start')
     }
 
-    let result: IPNetwork[] = []
+    const result: IPNetwork[] = []
 
     let startBi = startAddress.bigInteger()
-    let endBi = endAddress.bigInteger()
+    const endBi = endAddress.bigInteger()
 
     while (startBi.compareTo(endBi) <= 0) {
-        let nBits = Math.min(
+        const nBits = Math.min(
             countRighthandZeroBits(startBi, ipBits),
             endBi.subtract(startBi).add(JsbnBigInteger.ONE).bitLength() - 1
         )
@@ -283,7 +298,7 @@ export function summarize(
 
 export function filter(
     list: IPNetwork[],
-    filter: IPNetwork[],
+    filterList: IPNetwork[],
     options?: FilterOptions
 ): {result: IPNetwork[]; delta: IPNetwork[]} {
     if (
@@ -297,7 +312,7 @@ export function filter(
     let result: IPNetwork[] = []
     let delta: IPNetwork[] = []
 
-    let filterIntervals: IPNetworkInterval[] = filter
+    const filterIntervals: IPNetworkInterval[] = filterList
         .map(net => {
             return {
                 version: net.version,
@@ -307,7 +322,7 @@ export function filter(
         })
         .sort((a, b) => a.start.compareTo(b.start))
 
-    for (let entry of list) {
+    for (const entry of list) {
         if (typeof entry.version === 'undefined') {
             throw new TypeError('Invalid vesion')
         }
@@ -338,7 +353,7 @@ export function filter(
         let summarized: IPNetwork[]
         let filtered: IPNetwork[]
 
-        for (let cfi of filterIntervals) {
+        for (const cfi of filterIntervals) {
             if (cfi.version !== toFilter.version) {
                 continue
             }
@@ -350,8 +365,8 @@ export function filter(
                 break
             }
 
-            let dStart = cfi.start.subtract(toFilter.start)
-            let dEnd = cfi.end.subtract(toFilter.end)
+            const dStart = cfi.start.subtract(toFilter.start)
+            const dEnd = cfi.end.subtract(toFilter.end)
 
             if (dStart.signum() > 0) {
                 summarized = ipnetworkintervalSummarize({
@@ -404,7 +419,11 @@ export function filter(
         }
     }
 
-    result = collapse(result.filter(n => n.version === 4)).concat(collapse(result.filter(n => n.version === 6)))
-    delta = collapse(delta.filter(n => n.version === 4)).concat(collapse(delta.filter(n => n.version === 6)))
+    result = collapse(result.filter(n => n.version === 4)).concat(
+        collapse(result.filter(n => n.version === 6))
+    )
+    delta = collapse(delta.filter(n => n.version === 4)).concat(
+        collapse(delta.filter(n => n.version === 6))
+    )
     return {result, delta}
 }

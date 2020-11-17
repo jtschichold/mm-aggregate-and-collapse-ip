@@ -20,18 +20,18 @@ export const reservedIPv4: string[] = [
 ]
 
 export const reservedIPv6: string[] = [
-    "::/0", // Default route (no specific route)
-    "::/128", // Unspecified address.
-    "::1/128", // Loopback address to the local host.
-    "::ffff:0:0/96", // IPv4 mapped addresses.
-    "::ffff:0:0:0/96", // IPv4 translated addresses.
-    "64:ff9b::/96", // IPv4/IPv6 translation.
-    "100::/64", // Discard prefix.
-    "2001::/32", // Teredo tunneling.
-    "2001:20::/28", // ORCHIDv2.
-    "2001:db8::/32", // Addresses used in documentation and example source code.
-    "2002::/16", // The 6to4 addressing scheme (now deprecated).
-    "fc00::/7", // Unique local address.
-    "fe80::/10", // Link-local address.
-    "ff00::/8", // Multicast address.
+    '::/0', // Default route (no specific route)
+    '::/128', // Unspecified address.
+    '::1/128', // Loopback address to the local host.
+    '::ffff:0:0/96', // IPv4 mapped addresses.
+    '::ffff:0:0:0/96', // IPv4 translated addresses.
+    '64:ff9b::/96', // IPv4/IPv6 translation.
+    '100::/64', // Discard prefix.
+    '2001::/32', // Teredo tunneling.
+    '2001:20::/28', // ORCHIDv2.
+    '2001:db8::/32', // Addresses used in documentation and example source code.
+    '2002::/16', // The 6to4 addressing scheme (now deprecated).
+    'fc00::/7', // Unique local address.
+    'fe80::/10', // Link-local address.
+    'ff00::/8' // Multicast address.
 ]
