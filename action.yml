@@ -2,28 +2,40 @@ name: mm-aggregate-and-collapse-ip
 description: Aggregate and collapse lists of IP addresses/CIDR
 author: Luigi Mori
 inputs:
-  lists:
+  list:
     required: true
     description: filenames of lists to aggregate (using glob)
-  follow-symbolic-links:
+  followSymbolicLinks:
     required: false
     description: 'Indicates whether to follow symbolic links'
     default: true
-  result:
-    required: false
-    descriptin: filename of the resulting list
-    default: ""
   initval:
     required: false
     description: filename of the list to aggregate list to
-    default: ""
-  op:
+  filter:
     required: false
-    description: the operation to perform between list and initval, aggregate or filter
-    default: aggregate
+    description: filename of the list to be used to filter entries out
+  filterReservedIps:
+    required: false
+    description: if set, the IPs matching reserved IPs will be removed from the result
+    default: false
+  minIPv6Mask:
+    required: false
+    description: "minimum IPv6 mask to accept (default: 8)"
+    default: "8"
+  minIPv4Mask:
+    required: false
+    description: "minimum IPv4 mask to accept (default: 8)"
+    default: "8"
+  outputDir:
+    required: false
+    description: "directory to use for storing output files"
+    default: "./temp"
 outputs:
   result:
     description: the filename with the resulting list
+  delta:
+    description: the filename with the filtered entries
 runs:
   using: 'node12'
   main: 'dist/index.js'

@@ -3,7 +3,7 @@ import * as cp from 'child_process'
 import * as path from 'path'
 
 test('test runs', () => {
-    process.env['INPUT_LISTS'] = 'test.list'
+    process.env['INPUT_LIST'] = 'test.list'
     const ip = path.join(__dirname, '..', 'lib', 'main.js')
     const options: cp.ExecSyncOptions = {
         env: process.env

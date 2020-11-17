@@ -3,6 +3,7 @@ import * as fs from 'fs'
 import * as ipaddress from 'ip-address'
 import {BigInteger as JsbnBigInteger} from 'jsbn'
 import {type} from 'os'
+import { file } from 'tmp'
 
 // types
 interface IPNetwork4 extends ipaddress.Address4 {
@@ -19,6 +20,11 @@ interface IPNetworkInterval {
     version: IPNetwork['version']
     start: JsbnBigInteger
     end: JsbnBigInteger
+}
+
+export interface FilterOptions {
+    minV6SubnetMask?: number
+    minV4SubnetMask?: number
 }
 
 // utilities
@@ -140,6 +146,21 @@ export async function* read(
     }
 }
 
+export function write(path: string, list: IPNetwork[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const wstream = fs.createWriteStream(path, {flags: 'w+', encoding: 'utf-8'})
+
+        for (let entry of list) {
+            wstream.write(ipnetworkRepr(entry))
+            wstream.write('\n')
+        }
+        wstream.end()
+
+        wstream.on('finish', () => resolve('OK'))
+        wstream.on('error', reject)
+    })
+}
+
 export function supernet(net: IPNetwork): IPNetwork {
     let temp = net.startAddress()
     let subnetMask = net.subnetMask
@@ -162,7 +183,7 @@ export function collapse(networks: IPNetwork[]): IPNetwork[] {
     }
     for (let n of networks) {
         if (n.version !== networks[0].version) {
-            throw new TypeError('Different IPNetwork versions')
+            throw new TypeError('Different IPNetwork versions in collapse')
         }
     }
 
@@ -215,7 +236,7 @@ export function summarize(
     endAddress: IPNetwork
 ): IPNetwork[] {
     if (startAddress.version !== endAddress.version) {
-        throw new TypeError('Different IPNetwork versions')
+        throw new TypeError('Different IPNetwork versions in summarize')
     }
     if (startAddress.version !== 4 && startAddress.version !== 6) {
         throw new TypeError('Unknown IP version')
@@ -262,17 +283,21 @@ export function summarize(
 
 export function filter(
     list: IPNetwork[],
-    filter: IPNetwork[]
+    filter: IPNetwork[],
+    options?: FilterOptions
 ): {result: IPNetwork[]; delta: IPNetwork[]} {
-    if (filter.length === 0) {
+    if (
+        filter.length === 0 &&
+        !options?.minV4SubnetMask &&
+        !options?.minV6SubnetMask
+    ) {
         return {result: list, delta: []}
     }
 
     let result: IPNetwork[] = []
     let delta: IPNetwork[] = []
 
-    let collapsedFilter = collapse(filter)
-    let filterIntervals: IPNetworkInterval[] = collapsedFilter
+    let filterIntervals: IPNetworkInterval[] = filter
         .map(net => {
             return {
                 version: net.version,
@@ -285,6 +310,24 @@ export function filter(
     for (let entry of list) {
         if (typeof entry.version === 'undefined') {
             throw new TypeError('Invalid vesion')
+        }
+
+        // filter subnet mask
+        if (
+            entry.version === 4 &&
+            options?.minV4SubnetMask &&
+            entry.subnetMask < options?.minV4SubnetMask
+        ) {
+            delta.push(entry)
+            continue
+        }
+        if (
+            entry.version === 6 &&
+            options?.minV6SubnetMask &&
+            entry.subnetMask < options?.minV6SubnetMask
+        ) {
+            delta.push(entry)
+            continue
         }
 
         let toFilter: IPNetworkInterval | null = {
@@ -361,5 +404,7 @@ export function filter(
         }
     }
 
+    result = collapse(result.filter(n => n.version === 4)).concat(collapse(result.filter(n => n.version === 6)))
+    delta = collapse(delta.filter(n => n.version === 4)).concat(collapse(delta.filter(n => n.version === 6)))
     return {result, delta}
 }
