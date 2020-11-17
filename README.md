@@ -1,12 +1,12 @@
 # mm-process-ip-list
 
-This action can be used to process list of IPv4 & IPv6 networks to.
+This action can be used to process list of IPv4 & IPv6 networks.
 
 The action can be used to:
 - aggregate and collapse multiple lists
 - drop the entries overlapping a given list of IPv4 & IPv6 networks
 - drop the entries overlapping reserved IP networks
-- drop the entries where the subnet mask is too *small*
+- drop the entries where the subnet mask is too *short*
 
 ## Inputs
 
