@@ -74,8 +74,8 @@ Path of the list with entries dropped by filtering operations
 
 ### Aggregate & Collapse
 ```yaml
-# Basic usage, all the networks from the files matching *.list are
-# aggregated and collapsed.
+# Basic usage, all the networks from the files matching *.list pattern
+# are aggregated and collapsed.
 # 
 # Example:
 # List (from *.list): 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24
@@ -87,9 +87,9 @@ with:
 
 ### Aggregate & Collapse & Filter
 ```yaml
-# All the networks from the files matching *.list are aggregated,
+# All the networks from the files matching *.list pattern are aggregated,
 # collapsed and the subnets overlapping one of the entries in 
-# myorgips.list are dropped (and saved in delta)
+# myorgips.filter are dropped (and saved in delta)
 #
 # Example: 
 # List (from *.list): 10.0.0.0, 10.0.0.1, 10.0.1.0/24
