@@ -45,7 +45,7 @@
     "eslint-plugin-jest": "^23.20.0",
     "ip-address": "^7.1.0",
     "jest": "^24.9.0",
-    "jest-circus": "^26.4.2",
+    "jest-circus": "^26.6.3",
     "js-yaml": "^3.14.0",
     "jsbn": "^1.1.0",
     "prettier": "2.1.2",
