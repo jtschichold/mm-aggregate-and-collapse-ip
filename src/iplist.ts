@@ -111,7 +111,7 @@ function ipnetworkintervalSummarize(i: IPNetworkInterval): IPNetwork[] {
     return summarize(start, end)
 }
 
-// XXX - this should not be exported
+// XXX - this should not be exported, exported for tests
 export function countRighthandZeroBits(
     n: JsbnBigInteger,
     bits: number
@@ -124,10 +124,24 @@ export function countRighthandZeroBits(
     return Math.min(first1Bit, bits)
 }
 
-// real stuff
-export async function* read(
-    path: string
-): AsyncGenerator<IPNetwork, void, void> {
+function readAsJSON(path: string): string[] | null {
+    let result: string[]
+
+    try {
+        result = JSON.parse(fs.readFileSync(path, {encoding: 'utf-8'}))
+
+        if (!Array.isArray(result)) {
+            return null
+        }
+    } catch {
+        return null
+    }
+
+    core.info(`Read ${path} as JSON`)
+    return result
+}
+
+async function* readAsText(path: string): AsyncGenerator<string, void, void> {
     const fileStream = fs.createReadStream(path, 'utf-8')
     const readLine = readline.createInterface({
         input: fileStream,
@@ -140,13 +154,33 @@ export async function* read(
         }
 
         const trimmedLine = line.trim()
+        if (trimmedLine.length === 0) {
+            continue
+        }
 
+        yield trimmedLine
+    }
+}
+
+// real stuff
+export async function* read(
+    path: string
+): AsyncGenerator<IPNetwork, void, void> {
+    let entries:
+        | null
+        | AsyncGenerator<string, void, void>
+        | string[] = readAsJSON(path)
+    if (entries == null) {
+        entries = readAsText(path)
+    }
+
+    for await (const entry of entries) {
         try {
-            yield ip_network(trimmedLine)
+            yield ip_network(entry)
         } catch {
             core.warning(
-                `Line "${trimmedLine.slice(0, 16)}${
-                    trimmedLine.length > 16 ? '...' : ''
+                `Entry "${entry.slice(0, 16)}${
+                    entry.length > 16 ? '...' : ''
                 }" is not a valid IP network`
             )
         }

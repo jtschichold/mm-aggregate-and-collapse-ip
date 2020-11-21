@@ -5,11 +5,14 @@ import {BigInteger as JsbnBigInteger} from 'jsbn'
 test('test read', async () => {
     let count = 0
 
-    for await (const ipnetwork of iplist.read('./__tests__/test.list')) {
+    for await (const ipnetwork of iplist.read('./__tests__/list1.list')) {
+        count += 1
+    }
+    for await (const ipnetwork of iplist.read('./__tests__/list2.json')) {
         count += 1
     }
 
-    expect(count).toBe(3)
+    expect(count).toBe(5)
 })
 
 test('test collapsing 1', () => {
