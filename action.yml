@@ -1,4 +1,4 @@
-name: mm-aggregate-and-collapse-ip
+name: mm-process-ip-list
 description: Aggregate and collapse lists of IP addresses/CIDR
 author: Luigi Mori
 inputs:
