@@ -1,7 +1,5 @@
 import * as core from '@actions/core'
 import * as glob from '@actions/glob'
-import * as path from 'path'
-import * as tmp from 'tmp'
 import * as iplist from './iplist'
 import * as reservedIPs from './reservedips'
 
@@ -17,7 +15,8 @@ interface ActionInputs {
     filter?: string
     filterReservedIPs?: boolean
     filterOptions: FilterOptions
-    tmpTemplate: string
+    result: string
+    delta: string
 }
 
 function parseInputs(): ActionInputs {
@@ -31,7 +30,8 @@ function parseInputs(): ActionInputs {
             minV4SubnetMask: 8,
             minV6SubnetMask: 8
         },
-        tmpTemplate: './temp/XXXXXX'
+        result: core.getInput('result'),
+        delta: core.getInput('delta')
     }
 
     const initval: string = core.getInput('initval')
@@ -51,9 +51,6 @@ function parseInputs(): ActionInputs {
     const minIPv4Mask: string = core.getInput('minIPv4Mask')
     if (minIPv4Mask)
         result.filterOptions.minV4SubnetMask = parseInt(minIPv4Mask)
-
-    const outputDir: string = core.getInput('outputDir')
-    if (outputDir) result.tmpTemplate = path.join(outputDir, 'XXXXXX')
 
     return result
 }
@@ -169,20 +166,15 @@ async function run(): Promise<void> {
 
         // save my stuff
         core.info('Saving outputs...')
-        const deltaPath = tmp.tmpNameSync({
-            template: inputs.tmpTemplate,
-            tmpdir: '.'
-        })
-        await iplist.write(deltaPath, delta)
+        if (inputs.result) {
+            await iplist.write(inputs.result, result)
+        }
+        if (inputs.delta) {
+            await iplist.write(inputs.delta, delta)
+        }
 
-        const resultPath = tmp.tmpNameSync({
-            template: inputs.tmpTemplate,
-            tmpdir: '.'
-        })
-        await iplist.write(resultPath, result)
-
-        core.setOutput('result', resultPath)
-        core.setOutput('delta', deltaPath)
+        core.setOutput('result', inputs.result)
+        core.setOutput('delta', inputs.delta)
     } catch (error) {
         core.setFailed(error.message)
     }

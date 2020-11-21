@@ -54,21 +54,24 @@ Minimum allowed subnet mask length for IPv4 networks. IPv4 networks from `list` 
 
 Default: 8
 
-### `outputDir`
 
-The directory to generate results into.
+### `result`
 
-Default: *./temp*
+Path of the list with the processing results.
+
+### `delta`
+
+Path of the list with entries dropped by filtering operations.
 
 ## Outputs
 
 ### `result`
 
-Path of the list with the processing results
+Path of the list with the processing results.
 
 ### `delta`
 
-Path of the list with entries dropped by filtering operations
+Path of the list with entries dropped by filtering operations.
 
 ## Example usage
 

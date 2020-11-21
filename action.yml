@@ -27,10 +27,12 @@ inputs:
     required: false
     description: "minimum IPv4 mask to accept (default: 8)"
     default: "8"
-  outputDir:
+  result:
     required: false
-    description: "directory to use for storing output files"
-    default: "./temp"
+    description: filename to store result into
+  delta:
+    required: false
+    description: filename to store filtered entries
 outputs:
   result:
     description: the filename with the resulting list

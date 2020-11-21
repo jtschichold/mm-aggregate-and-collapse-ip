@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
-  "version": "0.0.0",
+  "name": "mm-process-ip-list",
+  "version": "0.0.3",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "Github Action for processing lists of IP addresses/CIDR",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
