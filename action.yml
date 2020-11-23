@@ -15,7 +15,7 @@ inputs:
   filter:
     required: false
     description: filename of the list to be used to filter entries out
-  filterReservedIps:
+  filterReservedIPs:
     required: false
     description: if set, the IPs matching reserved IPs will be removed from the result
     default: false

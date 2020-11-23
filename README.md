@@ -36,9 +36,15 @@ Path to a list of IPv4 & IPv6 networks. If an entry from `list` overlaps one of 
 
 Default: *none*
 
-### `filterReservedIps`
+### `filterReservedIPs`
 
 Drop `entries` from list if they overlap one reserved IP networks (see [Wikipedia](ttps://en.wikipedia.org/wiki/Reserved_IP_addresses) for  a list).
+
+Default: *false*. Set to *True* to enable.
+
+### `filterInPlace`
+
+Lists matching the pattern in `list` are filtered in place, no aggregation is performed.
 
 Default: *false*. Set to *True* to enable.
 
