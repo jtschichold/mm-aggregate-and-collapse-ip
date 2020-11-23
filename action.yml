@@ -27,6 +27,9 @@ inputs:
     required: false
     description: "minimum IPv4 mask to accept (default: 8)"
     default: "8"
+  filterInPlace:
+    required: false
+    description: if set, files matching list pattern are filtered in place and not aggregated
   result:
     required: false
     description: filename to store result into

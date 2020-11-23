@@ -480,12 +480,19 @@ function parseInputs() {
     const filterReservedIPs = core.getInput('filterReservedIps');
     if (filterReservedIPs && filterReservedIPs.toUpperCase() !== 'FALSE')
         result.filterReservedIPs = true;
+    const filterInPlace = core.getInput('filterInPlace');
+    if (filterInPlace && filterInPlace.toLocaleUpperCase() !== 'FALSE')
+        result.filterInPlace = true;
     const minIPv6Mask = core.getInput('minIPv6Mask');
     if (minIPv6Mask)
         result.filterOptions.minV6SubnetMask = parseInt(minIPv6Mask);
     const minIPv4Mask = core.getInput('minIPv4Mask');
     if (minIPv4Mask)
         result.filterOptions.minV4SubnetMask = parseInt(minIPv4Mask);
+    if (result.filterInPlace &&
+        (result.delta || result.result || result.initval)) {
+        core.warning('filterInPlace input set: delta, result and initval inputs are ignored');
+    }
     return result;
 }
 function isSubnetMaskOk(n, options) {
@@ -500,68 +507,11 @@ function isSubnetMaskOk(n, options) {
     return true;
 }
 function run() {
-    var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
+    var e_1, _a, e_2, _b, e_3, _c, e_4, _d, e_5, _e, e_6, _f;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const delta = [];
             const inputs = parseInputs();
-            // load the initial list if present
-            const initialList = [];
-            if (inputs.initval) {
-                try {
-                    for (var _e = __asyncValues(iplist.read(inputs.initval)), _f; _f = yield _e.next(), !_f.done;) {
-                        const ivnet = _f.value;
-                        core.info(`Loading initval from ${inputs.initval}...`);
-                        if (!isSubnetMaskOk(ivnet, inputs.filterOptions)) {
-                            delta.push(ivnet);
-                            continue;
-                        }
-                        initialList.push(ivnet);
-                    }
-                }
-                catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                finally {
-                    try {
-                        if (_f && !_f.done && (_a = _e.return)) yield _a.call(_e);
-                    }
-                    finally { if (e_1) throw e_1.error; }
-                }
-            }
-            // load the additional list
-            const globber = yield glob.create(inputs.list, inputs.listGlobOptions);
-            try {
-                for (var _g = __asyncValues(globber.globGenerator()), _h; _h = yield _g.next(), !_h.done;) {
-                    const lpath = _h.value;
-                    core.info(`Loading list from ${lpath}...`);
-                    try {
-                        for (var _j = (e_3 = void 0, __asyncValues(iplist.read(lpath))), _k; _k = yield _j.next(), !_k.done;) {
-                            const nentry = _k.value;
-                            if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
-                                delta.push(nentry);
-                                continue;
-                            }
-                            initialList.push(nentry);
-                        }
-                    }
-                    catch (e_3_1) { e_3 = { error: e_3_1 }; }
-                    finally {
-                        try {
-                            if (_k && !_k.done && (_c = _j.return)) yield _c.call(_j);
-                        }
-                        finally { if (e_3) throw e_3.error; }
-                    }
-                }
-            }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-            finally {
-                try {
-                    if (_h && !_h.done && (_b = _g.return)) yield _b.call(_g);
-                }
-                finally { if (e_2) throw e_2.error; }
-            }
-            // aggregate the list
-            core.info('Aggregating and collapsing the list...');
-            let result = iplist.collapse(initialList);
             // build the filter list
             let filterListV4 = [];
             let filterListV6 = [];
@@ -575,8 +525,8 @@ function run() {
             if (inputs.filter) {
                 core.info(`Loading filter entries from ${inputs.filter}...`);
                 try {
-                    for (var _l = __asyncValues(iplist.read(inputs.filter)), _m; _m = yield _l.next(), !_m.done;) {
-                        const fnet = _m.value;
+                    for (var _g = __asyncValues(iplist.read(inputs.filter)), _h; _h = yield _g.next(), !_h.done;) {
+                        const fnet = _h.value;
                         if (fnet.version === 4) {
                             filterListV4.push(fnet);
                             continue;
@@ -587,36 +537,135 @@ function run() {
                         }
                     }
                 }
-                catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                catch (e_1_1) { e_1 = { error: e_1_1 }; }
                 finally {
                     try {
-                        if (_m && !_m.done && (_d = _l.return)) yield _d.call(_l);
+                        if (_h && !_h.done && (_a = _g.return)) yield _a.call(_g);
                     }
-                    finally { if (e_4) throw e_4.error; }
+                    finally { if (e_1) throw e_1.error; }
                 }
             }
             filterListV4 = iplist.collapse(filterListV4);
             filterListV6 = iplist.collapse(filterListV6);
-            // let's filter (if needed)
-            if (filterListV4.length !== 0 ||
-                filterListV6.length !== 0 ||
-                inputs.filterOptions.minV4SubnetMask !== 0 ||
-                inputs.filterOptions.minV6SubnetMask !== 0) {
-                let fdelta;
-                core.info('Filtering the list...');
-                ({ result, delta: fdelta } = iplist.filter(result, filterListV4.concat(filterListV6)));
-                delta.concat(fdelta);
+            if (!inputs.filterInPlace) {
+                // load the initial list if present
+                const initialList = [];
+                if (inputs.initval) {
+                    try {
+                        for (var _j = __asyncValues(iplist.read(inputs.initval)), _k; _k = yield _j.next(), !_k.done;) {
+                            const ivnet = _k.value;
+                            core.info(`Loading initval from ${inputs.initval}...`);
+                            initialList.push(ivnet);
+                        }
+                    }
+                    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                    finally {
+                        try {
+                            if (_k && !_k.done && (_b = _j.return)) yield _b.call(_j);
+                        }
+                        finally { if (e_2) throw e_2.error; }
+                    }
+                }
+                // load the additional list
+                const globber = yield glob.create(inputs.list, inputs.listGlobOptions);
+                try {
+                    for (var _l = __asyncValues(globber.globGenerator()), _m; _m = yield _l.next(), !_m.done;) {
+                        const lpath = _m.value;
+                        core.info(`Loading list from ${lpath}...`);
+                        try {
+                            for (var _o = (e_4 = void 0, __asyncValues(iplist.read(lpath))), _p; _p = yield _o.next(), !_p.done;) {
+                                const nentry = _p.value;
+                                if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                                    delta.push(nentry);
+                                    continue;
+                                }
+                                initialList.push(nentry);
+                            }
+                        }
+                        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                        finally {
+                            try {
+                                if (_p && !_p.done && (_d = _o.return)) yield _d.call(_o);
+                            }
+                            finally { if (e_4) throw e_4.error; }
+                        }
+                    }
+                }
+                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                finally {
+                    try {
+                        if (_m && !_m.done && (_c = _l.return)) yield _c.call(_l);
+                    }
+                    finally { if (e_3) throw e_3.error; }
+                }
+                // aggregate the list
+                core.info('Aggregating and collapsing the list...');
+                let result = iplist.collapse(initialList);
+                // let's filter (if needed)
+                if (filterListV4.length !== 0 ||
+                    filterListV6.length !== 0 ||
+                    inputs.filterOptions.minV4SubnetMask !== 0 ||
+                    inputs.filterOptions.minV6SubnetMask !== 0) {
+                    let fdelta;
+                    core.info('Filtering the list...');
+                    ({ result, delta: fdelta } = iplist.filter(result, filterListV4.concat(filterListV6)));
+                    delta.concat(fdelta);
+                }
+                // save my stuff
+                core.info('Saving outputs...');
+                if (inputs.result) {
+                    yield iplist.write(inputs.result, result);
+                }
+                if (inputs.delta) {
+                    yield iplist.write(inputs.delta, delta);
+                }
+                core.setOutput('result', inputs.result);
+                core.setOutput('delta', inputs.delta);
             }
-            // save my stuff
-            core.info('Saving outputs...');
-            if (inputs.result) {
-                yield iplist.write(inputs.result, result);
+            else {
+                const globber = yield glob.create(inputs.list, inputs.listGlobOptions);
+                try {
+                    for (var _q = __asyncValues(globber.globGenerator()), _r; _r = yield _q.next(), !_r.done;) {
+                        const lpath = _r.value;
+                        core.info(`Processing list from ${lpath}...`);
+                        const currentList = [];
+                        try {
+                            for (var _s = (e_6 = void 0, __asyncValues(iplist.read(lpath))), _t; _t = yield _s.next(), !_t.done;) {
+                                const nentry = _t.value;
+                                if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                                    delta.push(nentry);
+                                    continue;
+                                }
+                                currentList.push(nentry);
+                            }
+                        }
+                        catch (e_6_1) { e_6 = { error: e_6_1 }; }
+                        finally {
+                            try {
+                                if (_t && !_t.done && (_f = _s.return)) yield _f.call(_s);
+                            }
+                            finally { if (e_6) throw e_6.error; }
+                        }
+                        let result = iplist.collapse(currentList);
+                        // let's filter (if needed)
+                        if (filterListV4.length !== 0 ||
+                            filterListV6.length !== 0 ||
+                            inputs.filterOptions.minV4SubnetMask !== 0 ||
+                            inputs.filterOptions.minV6SubnetMask !== 0) {
+                            core.info('Filtering the list...');
+                            ({ result } = iplist.filter(result, filterListV4.concat(filterListV6)));
+                        }
+                        yield iplist.write(lpath, result);
+                    }
+                }
+                catch (e_5_1) { e_5 = { error: e_5_1 }; }
+                finally {
+                    try {
+                        if (_r && !_r.done && (_e = _q.return)) yield _e.call(_q);
+                    }
+                    finally { if (e_5) throw e_5.error; }
+                }
             }
-            if (inputs.delta) {
-                yield iplist.write(inputs.delta, delta);
-            }
-            core.setOutput('result', inputs.result);
-            core.setOutput('delta', inputs.delta);
         }
         catch (error) {
             core.setFailed(error.message);

@@ -15,6 +15,7 @@ interface ActionInputs {
     filter?: string
     filterReservedIPs?: boolean
     filterOptions: FilterOptions
+    filterInPlace?: boolean
     result: string
     delta: string
 }
@@ -44,6 +45,10 @@ function parseInputs(): ActionInputs {
     if (filterReservedIPs && filterReservedIPs.toUpperCase() !== 'FALSE')
         result.filterReservedIPs = true
 
+    const filterInPlace: string = core.getInput('filterInPlace')
+    if (filterInPlace && filterInPlace.toLocaleUpperCase() !== 'FALSE')
+        result.filterInPlace = true
+
     const minIPv6Mask: string = core.getInput('minIPv6Mask')
     if (minIPv6Mask)
         result.filterOptions.minV6SubnetMask = parseInt(minIPv6Mask)
@@ -51,6 +56,15 @@ function parseInputs(): ActionInputs {
     const minIPv4Mask: string = core.getInput('minIPv4Mask')
     if (minIPv4Mask)
         result.filterOptions.minV4SubnetMask = parseInt(minIPv4Mask)
+
+    if (
+        result.filterInPlace &&
+        (result.delta || result.result || result.initval)
+    ) {
+        core.warning(
+            'filterInPlace input set: delta, result and initval inputs are ignored'
+        )
+    }
 
     return result
 }
@@ -79,40 +93,6 @@ async function run(): Promise<void> {
         const delta: iplist.IPNetwork[] = []
 
         const inputs = parseInputs()
-
-        // load the initial list if present
-        const initialList: iplist.IPNetwork[] = []
-
-        if (inputs.initval) {
-            for await (const ivnet of iplist.read(inputs.initval)) {
-                core.info(`Loading initval from ${inputs.initval}...`)
-
-                if (!isSubnetMaskOk(ivnet, inputs.filterOptions)) {
-                    delta.push(ivnet)
-                    continue
-                }
-
-                initialList.push(ivnet)
-            }
-        }
-
-        // load the additional list
-        const globber = await glob.create(inputs.list, inputs.listGlobOptions)
-        for await (const lpath of globber.globGenerator()) {
-            core.info(`Loading list from ${lpath}...`)
-            for await (const nentry of iplist.read(lpath)) {
-                if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
-                    delta.push(nentry)
-                    continue
-                }
-
-                initialList.push(nentry)
-            }
-        }
-
-        // aggregate the list
-        core.info('Aggregating and collapsing the list...')
-        let result = iplist.collapse(initialList)
 
         // build the filter list
         let filterListV4: iplist.IPNetwork[] = []
@@ -147,34 +127,104 @@ async function run(): Promise<void> {
         filterListV4 = iplist.collapse(filterListV4)
         filterListV6 = iplist.collapse(filterListV6)
 
-        // let's filter (if needed)
-        if (
-            filterListV4.length !== 0 ||
-            filterListV6.length !== 0 ||
-            inputs.filterOptions.minV4SubnetMask !== 0 ||
-            inputs.filterOptions.minV6SubnetMask !== 0
-        ) {
-            let fdelta: iplist.IPNetwork[]
+        if (!inputs.filterInPlace) {
+            // load the initial list if present
+            const initialList: iplist.IPNetwork[] = []
 
-            core.info('Filtering the list...')
-            ;({result, delta: fdelta} = iplist.filter(
-                result,
-                filterListV4.concat(filterListV6)
-            ))
-            delta.concat(fdelta)
-        }
+            if (inputs.initval) {
+                for await (const ivnet of iplist.read(inputs.initval)) {
+                    core.info(`Loading initval from ${inputs.initval}...`)
 
-        // save my stuff
-        core.info('Saving outputs...')
-        if (inputs.result) {
-            await iplist.write(inputs.result, result)
-        }
-        if (inputs.delta) {
-            await iplist.write(inputs.delta, delta)
-        }
+                    initialList.push(ivnet)
+                }
+            }
 
-        core.setOutput('result', inputs.result)
-        core.setOutput('delta', inputs.delta)
+            // load the additional list
+            const globber = await glob.create(
+                inputs.list,
+                inputs.listGlobOptions
+            )
+            for await (const lpath of globber.globGenerator()) {
+                core.info(`Loading list from ${lpath}...`)
+                for await (const nentry of iplist.read(lpath)) {
+                    if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                        delta.push(nentry)
+                        continue
+                    }
+
+                    initialList.push(nentry)
+                }
+            }
+
+            // aggregate the list
+            core.info('Aggregating and collapsing the list...')
+            let result = iplist.collapse(initialList)
+
+            // let's filter (if needed)
+            if (
+                filterListV4.length !== 0 ||
+                filterListV6.length !== 0 ||
+                inputs.filterOptions.minV4SubnetMask !== 0 ||
+                inputs.filterOptions.minV6SubnetMask !== 0
+            ) {
+                let fdelta: iplist.IPNetwork[]
+
+                core.info('Filtering the list...')
+                ;({result, delta: fdelta} = iplist.filter(
+                    result,
+                    filterListV4.concat(filterListV6)
+                ))
+                delta.concat(fdelta)
+            }
+
+            // save my stuff
+            core.info('Saving outputs...')
+            if (inputs.result) {
+                await iplist.write(inputs.result, result)
+            }
+            if (inputs.delta) {
+                await iplist.write(inputs.delta, delta)
+            }
+
+            core.setOutput('result', inputs.result)
+            core.setOutput('delta', inputs.delta)
+        } else {
+            const globber = await glob.create(
+                inputs.list,
+                inputs.listGlobOptions
+            )
+            for await (const lpath of globber.globGenerator()) {
+                core.info(`Processing list from ${lpath}...`)
+                const currentList: iplist.IPNetwork[] = []
+
+                for await (const nentry of iplist.read(lpath)) {
+                    if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                        delta.push(nentry)
+                        continue
+                    }
+
+                    currentList.push(nentry)
+                }
+
+                let result = iplist.collapse(currentList)
+
+                // let's filter (if needed)
+                if (
+                    filterListV4.length !== 0 ||
+                    filterListV6.length !== 0 ||
+                    inputs.filterOptions.minV4SubnetMask !== 0 ||
+                    inputs.filterOptions.minV6SubnetMask !== 0
+                ) {
+                    core.info('Filtering the list...')
+                    ;({result} = iplist.filter(
+                        result,
+                        filterListV4.concat(filterListV6)
+                    ))
+                }
+
+                await iplist.write(lpath, result)
+            }
+        }
     } catch (error) {
         core.setFailed(error.message)
     }
