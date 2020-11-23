@@ -26,13 +26,11 @@ jobs:
       - uses: ./
         with:
           list: "./__tests__/list*.*"
-          filterReservedIps: "yes"
+          filterReservedIPs: "yes"
           result: "./temp/test1.result"
           delta: "./temp/test1.delta"
-      - name: show results
-        run: |
-          cat ./temp/test1.result
-          cat ./temp/test1.delta
+      - name: check results
+        run: diff --strip-trailing-cr ./temp/test1.delta ./__tests__/test1-delta.result
   test2: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
@@ -43,10 +41,11 @@ jobs:
           cp ./__tests__/list*.* ./temp
       - uses: ./
         with:
-          list: "./__tests__/list*.*"
-          filterReservedIps: "false"
+          list: "./temp/list*.*"
+          filterReservedIPs: "false"
           filterInPlace: "yes"
           filter: "./__tests__/blocklist.filter"
-      - name: show results
+      - name: check results
         run: |
-          cat ./__tests__/list*.*
+          diff ./__tests__/test2-list1.result ./temp/list1.list
+          diff ./__tests__/test2-list2.result ./temp/list2.json

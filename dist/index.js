@@ -493,6 +493,7 @@ function parseInputs() {
         (result.delta || result.result || result.initval)) {
         core.warning('filterInPlace input set: delta, result and initval inputs are ignored');
     }
+    core.info(`Inputs: ${result}`);
     return result;
 }
 function isSubnetMaskOk(n, options) {
@@ -510,7 +511,6 @@ function run() {
     var e_1, _a, e_2, _b, e_3, _c, e_4, _d, e_5, _e, e_6, _f;
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const delta = [];
             const inputs = parseInputs();
             // build the filter list
             let filterListV4 = [];
@@ -548,6 +548,7 @@ function run() {
             filterListV4 = iplist.collapse(filterListV4);
             filterListV6 = iplist.collapse(filterListV6);
             if (!inputs.filterInPlace) {
+                let delta = [];
                 // load the initial list if present
                 const initialList = [];
                 if (inputs.initval) {
@@ -576,6 +577,7 @@ function run() {
                             for (var _o = (e_4 = void 0, __asyncValues(iplist.read(lpath))), _p; _p = yield _o.next(), !_p.done;) {
                                 const nentry = _p.value;
                                 if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                                    core.warning(`Discarding ${iplist.ipnetworkRepr(nentry)}, subnet mask too short...`);
                                     delta.push(nentry);
                                     continue;
                                 }
@@ -609,7 +611,10 @@ function run() {
                     let fdelta;
                     core.info('Filtering the list...');
                     ({ result, delta: fdelta } = iplist.filter(result, filterListV4.concat(filterListV6)));
-                    delta.concat(fdelta);
+                    core.warning(`Entries ${fdelta
+                        .map(iplist.ipnetworkRepr)
+                        .join(', ')} filtered...`);
+                    delta = delta.concat(fdelta);
                 }
                 // save my stuff
                 core.info('Saving outputs...');
@@ -633,7 +638,7 @@ function run() {
                             for (var _s = (e_6 = void 0, __asyncValues(iplist.read(lpath))), _t; _t = yield _s.next(), !_t.done;) {
                                 const nentry = _t.value;
                                 if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
-                                    delta.push(nentry);
+                                    core.warning(`Discarding ${iplist.ipnetworkRepr(nentry)}, subnet mask too short...`);
                                     continue;
                                 }
                                 currentList.push(nentry);
@@ -652,8 +657,12 @@ function run() {
                             filterListV6.length !== 0 ||
                             inputs.filterOptions.minV4SubnetMask !== 0 ||
                             inputs.filterOptions.minV6SubnetMask !== 0) {
+                            let delta;
                             core.info('Filtering the list...');
-                            ({ result } = iplist.filter(result, filterListV4.concat(filterListV6)));
+                            ({ result, delta } = iplist.filter(result, filterListV4.concat(filterListV6)));
+                            core.warning(`Entries ${delta
+                                .map(iplist.ipnetworkRepr)
+                                .join(', ')} filtered...`);
                         }
                         yield iplist.write(lpath, result);
                     }

@@ -66,6 +66,8 @@ function parseInputs(): ActionInputs {
         )
     }
 
+    core.info(`Inputs: ${result}`)
+
     return result
 }
 
@@ -90,8 +92,6 @@ function isSubnetMaskOk(n: iplist.IPNetwork, options: FilterOptions): boolean {
 
 async function run(): Promise<void> {
     try {
-        const delta: iplist.IPNetwork[] = []
-
         const inputs = parseInputs()
 
         // build the filter list
@@ -128,6 +128,8 @@ async function run(): Promise<void> {
         filterListV6 = iplist.collapse(filterListV6)
 
         if (!inputs.filterInPlace) {
+            let delta: iplist.IPNetwork[] = []
+
             // load the initial list if present
             const initialList: iplist.IPNetwork[] = []
 
@@ -148,6 +150,11 @@ async function run(): Promise<void> {
                 core.info(`Loading list from ${lpath}...`)
                 for await (const nentry of iplist.read(lpath)) {
                     if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
+                        core.warning(
+                            `Discarding ${iplist.ipnetworkRepr(
+                                nentry
+                            )}, subnet mask too short...`
+                        )
                         delta.push(nentry)
                         continue
                     }
@@ -174,7 +181,12 @@ async function run(): Promise<void> {
                     result,
                     filterListV4.concat(filterListV6)
                 ))
-                delta.concat(fdelta)
+                core.warning(
+                    `Entries ${fdelta
+                        .map(iplist.ipnetworkRepr)
+                        .join(', ')} filtered...`
+                )
+                delta = delta.concat(fdelta)
             }
 
             // save my stuff
@@ -199,7 +211,11 @@ async function run(): Promise<void> {
 
                 for await (const nentry of iplist.read(lpath)) {
                     if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
-                        delta.push(nentry)
+                        core.warning(
+                            `Discarding ${iplist.ipnetworkRepr(
+                                nentry
+                            )}, subnet mask too short...`
+                        )
                         continue
                     }
 
@@ -215,11 +231,18 @@ async function run(): Promise<void> {
                     inputs.filterOptions.minV4SubnetMask !== 0 ||
                     inputs.filterOptions.minV6SubnetMask !== 0
                 ) {
+                    let delta: iplist.IPNetwork[]
+
                     core.info('Filtering the list...')
-                    ;({result} = iplist.filter(
+                    ;({result, delta} = iplist.filter(
                         result,
                         filterListV4.concat(filterListV6)
                     ))
+                    core.warning(
+                        `Entries ${delta
+                            .map(iplist.ipnetworkRepr)
+                            .join(', ')} filtered...`
+                    )
                 }
 
                 await iplist.write(lpath, result)
