@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@types/ip-address": "^7.0.0",
-    "@types/jest": "^26.0.15",
+    "@types/jest": "^26.0.19",
     "@types/jsbn": "^1.2.29",
     "@types/node": "^14.14.16",
     "@types/tmp": "^0.2.0",
