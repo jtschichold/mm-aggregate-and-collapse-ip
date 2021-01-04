@@ -134,9 +134,9 @@ async function run(): Promise<void> {
             const initialList: iplist.IPNetwork[] = []
 
             if (inputs.initval) {
-                for await (const ivnet of iplist.read(inputs.initval)) {
-                    core.info(`Loading initval from ${inputs.initval}...`)
+                core.info(`Loading initval from ${inputs.initval}...`)
 
+                for await (const ivnet of iplist.read(inputs.initval)) {
                     initialList.push(ivnet)
                 }
             }
