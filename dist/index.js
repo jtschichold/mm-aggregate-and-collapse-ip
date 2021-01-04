@@ -320,7 +320,7 @@ function summarize(startAddress, endAddress) {
 }
 exports.summarize = summarize;
 function filter(list, filterList) {
-    if (filter.length === 0) {
+    if (filterList.length === 0) {
         return { result: list, delta: [] };
     }
     let result = [];

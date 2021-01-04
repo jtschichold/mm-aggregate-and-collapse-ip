@@ -329,7 +329,7 @@ export function filter(
     list: IPNetwork[],
     filterList: IPNetwork[]
 ): {result: IPNetwork[]; delta: IPNetwork[]} {
-    if (filter.length === 0) {
+    if (filterList.length === 0) {
         return {result: list, delta: []}
     }
 
