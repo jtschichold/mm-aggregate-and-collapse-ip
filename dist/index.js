@@ -738,7 +738,6 @@ exports.reservedIPv4 = [
     '255.255.255.255/32' // Subnet Reserved for the "limited broadcast" destination address.
 ];
 exports.reservedIPv6 = [
-    '::/0',
     '::/128',
     '::1/128',
     '::ffff:0:0/96',

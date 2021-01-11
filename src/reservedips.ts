@@ -20,7 +20,6 @@ export const reservedIPv4: string[] = [
 ]
 
 export const reservedIPv6: string[] = [
-    '::/0', // Default route (no specific route)
     '::/128', // Unspecified address.
     '::1/128', // Loopback address to the local host.
     '::ffff:0:0/96', // IPv4 mapped addresses.
