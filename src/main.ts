@@ -131,13 +131,21 @@ async function run(): Promise<void> {
             let delta: iplist.IPNetwork[] = []
 
             // load the initial list if present
-            const initialList: iplist.IPNetwork[] = []
+            const initialListV4: iplist.IPNetwork[] = []
+            const initialListV6: iplist.IPNetwork[] = []
 
             if (inputs.initval) {
                 core.info(`Loading initval from ${inputs.initval}...`)
 
                 for await (const ivnet of iplist.read(inputs.initval)) {
-                    initialList.push(ivnet)
+                    if (ivnet.version === 4) {
+                        initialListV4.push(ivnet)
+                        continue
+                    }
+                    if (ivnet.version === 6) {
+                        initialListV6.push(ivnet)
+                        continue
+                    }
                 }
             }
 
@@ -159,13 +167,21 @@ async function run(): Promise<void> {
                         continue
                     }
 
-                    initialList.push(nentry)
+                    if (nentry.version === 4) {
+                        initialListV4.push(nentry)
+                        continue
+                    }
+                    if (nentry.version === 6) {
+                        initialListV6.push(nentry)
+                        continue
+                    }
                 }
             }
 
             // aggregate the list
             core.info('Aggregating and collapsing the list...')
-            let result = iplist.collapse(initialList)
+            let result = iplist.collapse(initialListV4)
+            result = result.concat(iplist.collapse(initialListV6))
 
             // let's filter (if needed)
             if (
@@ -207,7 +223,8 @@ async function run(): Promise<void> {
             )
             for await (const lpath of globber.globGenerator()) {
                 core.info(`Processing list from ${lpath}...`)
-                const currentList: iplist.IPNetwork[] = []
+                const currentListV4: iplist.IPNetwork[] = []
+                const currentListV6: iplist.IPNetwork[] = []
 
                 for await (const nentry of iplist.read(lpath)) {
                     if (!isSubnetMaskOk(nentry, inputs.filterOptions)) {
@@ -219,10 +236,18 @@ async function run(): Promise<void> {
                         continue
                     }
 
-                    currentList.push(nentry)
+                    if (nentry.version === 4) {
+                        currentListV4.push(nentry)
+                        continue
+                    }
+                    if (nentry.version === 6) {
+                        currentListV6.push(nentry)
+                        continue
+                    }
                 }
 
-                let result = iplist.collapse(currentList)
+                let result = iplist.collapse(currentListV4)
+                result = result.concat(iplist.collapse(currentListV6))
 
                 // let's filter (if needed)
                 if (

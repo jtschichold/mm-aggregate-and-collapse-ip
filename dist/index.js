@@ -550,13 +550,21 @@ function run() {
             if (!inputs.filterInPlace) {
                 let delta = [];
                 // load the initial list if present
-                const initialList = [];
+                const initialListV4 = [];
+                const initialListV6 = [];
                 if (inputs.initval) {
+                    core.info(`Loading initval from ${inputs.initval}...`);
                     try {
                         for (var _j = __asyncValues(iplist.read(inputs.initval)), _k; _k = yield _j.next(), !_k.done;) {
                             const ivnet = _k.value;
-                            core.info(`Loading initval from ${inputs.initval}...`);
-                            initialList.push(ivnet);
+                            if (ivnet.version === 4) {
+                                initialListV4.push(ivnet);
+                                continue;
+                            }
+                            if (ivnet.version === 6) {
+                                initialListV6.push(ivnet);
+                                continue;
+                            }
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -581,7 +589,14 @@ function run() {
                                     delta.push(nentry);
                                     continue;
                                 }
-                                initialList.push(nentry);
+                                if (nentry.version === 4) {
+                                    initialListV4.push(nentry);
+                                    continue;
+                                }
+                                if (nentry.version === 6) {
+                                    initialListV6.push(nentry);
+                                    continue;
+                                }
                             }
                         }
                         catch (e_4_1) { e_4 = { error: e_4_1 }; }
@@ -602,7 +617,8 @@ function run() {
                 }
                 // aggregate the list
                 core.info('Aggregating and collapsing the list...');
-                let result = iplist.collapse(initialList);
+                let result = iplist.collapse(initialListV4);
+                result = result.concat(iplist.collapse(initialListV6));
                 // let's filter (if needed)
                 if (filterListV4.length !== 0 ||
                     filterListV6.length !== 0 ||
@@ -633,7 +649,8 @@ function run() {
                     for (var _q = __asyncValues(globber.globGenerator()), _r; _r = yield _q.next(), !_r.done;) {
                         const lpath = _r.value;
                         core.info(`Processing list from ${lpath}...`);
-                        const currentList = [];
+                        const currentListV4 = [];
+                        const currentListV6 = [];
                         try {
                             for (var _s = (e_6 = void 0, __asyncValues(iplist.read(lpath))), _t; _t = yield _s.next(), !_t.done;) {
                                 const nentry = _t.value;
@@ -641,7 +658,14 @@ function run() {
                                     core.warning(`Discarding ${iplist.ipnetworkRepr(nentry)}, subnet mask too short...`);
                                     continue;
                                 }
-                                currentList.push(nentry);
+                                if (nentry.version === 4) {
+                                    currentListV4.push(nentry);
+                                    continue;
+                                }
+                                if (nentry.version === 6) {
+                                    currentListV6.push(nentry);
+                                    continue;
+                                }
                             }
                         }
                         catch (e_6_1) { e_6 = { error: e_6_1 }; }
@@ -651,7 +675,8 @@ function run() {
                             }
                             finally { if (e_6) throw e_6.error; }
                         }
-                        let result = iplist.collapse(currentList);
+                        let result = iplist.collapse(currentListV4);
+                        result = result.concat(iplist.collapse(currentListV6));
                         // let's filter (if needed)
                         if (filterListV4.length !== 0 ||
                             filterListV6.length !== 0 ||
