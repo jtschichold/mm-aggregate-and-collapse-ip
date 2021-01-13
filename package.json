@@ -29,11 +29,10 @@
   ],
   "author": "Luigi Mori",
   "license": "MIT",
-  "dependencies": {
-    "@actions/core": "^1.2.6",
-    "@actions/glob": "^0.1.1"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@actions/core": "^1.2.6",
+    "@actions/glob": "^0.1.1",
     "@types/ip-address": "^7.0.0",
     "@types/jest": "^26.0.19",
     "@types/jsbn": "^1.2.29",
